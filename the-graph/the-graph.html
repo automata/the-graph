@@ -185,12 +185,46 @@
         }
       },
       triggerAutolayout: function (event) {
-        if (klay !== undefined) {
-          setTimeout(function () {
-            var portInfo = this.graphView ? this.graphView.portInfo : null;
-            window.klay(this.graph, portInfo, this.applyAutolayout.bind(this));
-          }.bind(this), 5);
-        }
+        var countNodes = 0;
+        var nodesIdx = {};
+        var nodes = this.graph.nodes.map(function (node) {
+          nodesIdx[node.id] = countNodes++;
+          return {"name": node.id, "width": 72, "height": 108};
+        });
+        var links = this.graph.edges.map(function (edge) {
+          var from = edge.from.node,
+              to = edge.to.node;
+          return {"source": nodesIdx[from], "target": nodesIdx[to]};
+        });
+
+        var layouter = cola.d3adaptor()
+                           .linkDistance(150)
+                           .avoidOverlaps(true)
+                           .flowLayout('x')
+                           .jaccardLinkLengths()
+                           .size([this.width, this.height]);
+
+        layouter.nodes(nodes)
+                .links(links)
+                .start();
+
+        layouter.on("tick", function () {
+          var nodes = layouter.nodes();
+          var i, len;
+          for (i=0, len = nodes.length; i<len; i++) {
+            this.graph.setNodeMetadata(nodes[i].name, {
+              x: Math.round(nodes[i].x/this.snap)*this.snap,
+              y: Math.round(nodes[i].y/this.snap)*this.snap
+            });
+          }
+        }.bind(this));
+
+        // if (klay !== undefined) {
+        //   setTimeout(function () {
+        //     var portInfo = this.graphView ? this.graphView.portInfo : null;
+        //     window.klay(this.graph, portInfo, this.applyAutolayout.bind(this));
+        //   }.bind(this), 5);
+        // }
       },
       applyAutolayout: function (layoutedKGraph) {
         this.graph.startTransaction("autolayout");
